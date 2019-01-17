@@ -138,3 +138,135 @@ hflights %>% arrange(UniqueCarrier, desc(DepDelay))
 
 # Arrange flights by total delay (normal order).
 hflights %>% arrange(DepDelay + ArrDelay)
+
+
+# Print out a summary with variables min_dist and max_dist
+summarize(hflights, min_dist = min(Distance), max_dist = max(Distance))
+
+# Print out a summary with variable max_div
+summarize(filter(hflights, Diverted == 1), max_div = max(Distance))
+
+
+# Remove rows that have NA ArrDelay: temp1
+temp1 <- filter(hflights, !is.na(ArrDelay))
+
+# Generate summary about ArrDelay column of temp1
+summarize(temp1, earliest = min(ArrDelay), average = mean(ArrDelay), latest = max(ArrDelay), sd = sd(ArrDelay))
+
+# Keep rows that have no NA TaxiIn and no NA TaxiOut: temp2
+temp2 <- filter(hflights, !is.na(TaxiIn) & !is.na(TaxiOut))# hflights is available with full names for the carriers
+
+# Print the maximum taxiing difference of temp2 with summarize()
+summarize(temp2, max_taxi_diff = max(TaxiOut - TaxiIn))
+
+library(hflights)
+# Generate summarizing statistics for hflights
+summarize(hflights,
+          n_obs = n(),
+          n_carrier = n_distinct(UniqueCarrier),
+          n_dest = n_distinct(Dest))
+
+# All American Airline flights
+aa <- filter(hflights, UniqueCarrier == "American")
+
+# Generate summarizing statistics for aa 
+summarize(aa,
+          n_flights = n(),
+          n_canc = sum(Cancelled),
+          avg_delay = mean(ArrDelay, na.rm=TRUE))
+
+
+# Write the 'piped' version of the English sentences.
+hflights %>% mutate(diff = TaxiOut - TaxiIn) %>%
+  filter(!is.na(diff)) %>%
+  summarize(avg = mean(diff))
+
+
+
+# Chain together mutate(), filter() and summarize()
+hflights %>% mutate(RealTime = ActualElapsedTime + 100, mph = (Distance * 60 /RealTime) ) %>%
+  filter(!is.na(mph), mph < 70) %>%
+  summarize(n_less = n(),
+            n_dest = n_distinct(Dest),
+            min_dist = min(Distance),
+            max_dist = max(Distance))
+
+# Finish the command with a filter() and summarize() call
+hflights %>%
+  mutate(
+    RealTime = ActualElapsedTime + 100, 
+    mph = 60 * Distance / RealTime
+  ) %>%
+  filter(mph< 105 | Cancelled == 1 | Diverted == 1) %>%
+  summarize(n_non = n(),
+            n_dest = n_distinct(Dest),
+            min_dist = min(Distance),
+            max_dist = max(Distance))
+
+
+
+# Count the number of overnight flights
+hflights %>% filter(!is.na(DepTime) & !is.na(ArrTime) & DepTime > ArrTime) %>%
+  summarize(num = n())
+
+# Make an ordered per-carrier summary of hflights
+hflights %>%
+  group_by(UniqueCarrier) %>%
+  summarize(
+    p_canc = sum(Cancelled) * 100 / n(),
+    avg_delay = mean(ArrDelay, na.rm = TRUE)
+  ) %>%
+  arrange(avg_delay, p_canc)
+
+# dplyr is loaded, hflights is loaded with translated carrier names
+
+# Ordered overview of average arrival delays per carrier
+hflights %>% filter(!is.na(ArrDelay) & ArrDelay > 0) %>%
+  group_by(UniqueCarrier) %>%
+  summarize(avg = mean(ArrDelay)) %>%
+  mutate(rank = rank(avg)) %>%
+  arrange(rank)
+
+# dplyr and hflights (with translated carrier names) are pre-loaded
+
+# How many airplanes only flew to one destination?
+hflights %>%
+  group_by(TailNum) %>%
+  summarize(n = n_distinct(Dest)) %>%
+  filter(n == 1) %>%
+  summarize(nplanes = n())
+
+# Find the most visited destination for each carrier
+hflights %>%
+  group_by(UniqueCarrier, Dest) %>%
+  summarize(n = n()) %>%
+  mutate(rank = rank(desc(n))) %>%
+  filter(rank == 1)
+
+
+library(data.table)
+hflights2 <- as.data.table(hflights)
+
+# Use summarize to calculate n_carrier
+hflights2 %>% summarize(ncarrier = n_distinct(UniqueCarrier))
+
+
+# Set up a connection to the mysql database
+my_db <- src_mysql(dbname = "dplyr", 
+                   host = "courses.csrrinzqubik.us-east-1.rds.amazonaws.com", 
+                   port = 3306, 
+                   user = "student",
+                   password = "datacamp")
+
+# Reference a table within that source: nycflights
+nycflights <- tbl(my_db, "dplyr")
+
+# glimpse at nycflights
+glimpse(nycflights)
+
+# Ordered, grouped summary of nycflights
+nycflights %>%
+  group_by(carrier) %>%
+  summarize(n_flights = n(),
+            avg_delay = mean(arr_delay)) %>%
+  arrange(avg_delay)
